@@ -1,0 +1,144 @@
+介绍：
+本线程池ZThreadPool提供单个线程与依赖关系线程池接口。
+===============================================================================================================================================
+
+类及接口：
+-------------------------------------------------------------------ZThread类-------------------------------------------------------------------
+所属头文件ZThread.h，使用pthread库提供的线程API。
+
+公有函数：
+ZThread(bool detached = false)：
+构造函数，detached为false表示生成的线程是不分离的，其线程资源可被管理员主动回收，可通过wait公有接口实现;如果detached为true，则表示线程资源由操作系统主动回收。
+~ZThread()：
+析构函数，回收线程资源。
+int run(const Fnt &f,void **data = nullptr)：
+Fnt为std::function<void ()>，是无参无返回值的可调用对象类型，data存储子线程执行的结果，目前子线程使用的函数是默认的void *thFunc(void *pArg)，如果data不为空指针则子线程执行后返回nullptr。
+int run(const ZRunnable &runnable,void **data = nullptr)：
+接收const ZRunnable类类型的重载版本。
+int run(ZRunnable &runnable,void **data = nullptr)：
+接收ZRunnable类类型的重载版本。
+int wait(void **data = nullptr)：
+如果子线程是不可分离的，则wait会等到子线程结束后将返回值存储到data里并返回，如果data此时为空指针则只会等待到子线程结束;
+如果子线程是可分离的则wait直接返回且不改变data的值。
+非成员函数：
+void *thFunc(void *pArg)：
+在子线程执行传入的可调用对象，如果有运行调用的错误则会输出异常信息，返回空指针。
+
+------------------------------------------------------------------ZRunnable类------------------------------------------------------------------
+所属头文件ZRunnable.h，用户类可继承并在run函数里实现功能，通过ZThread类实现子线程调用。
+
+公有函数：
+ZRunnable()：
+合成的默认构造函数。
+virtual void run()：
+ZRunnable类类型的调用函数，在ZThread类的子线程调用，如果在调用时使用的是ZRunnable类类型,则抛出runtime_error异常，如果派生类在基类前销毁或传入ZThread类的是ZRunnable类类型则会调用该run函数版本。
+virtual void run() const：
+const ZRunnable类类型的调用函数，在ZThread类的子线程调用，作用与virtual void run();类似。
+virtual ~ZRunnable() = default;
+合成的默认析构函数。
+
+-----------------------------------------------------------------ZThreadPool类-----------------------------------------------------------------
+所属ZThreadPool.h，实现依赖关系线程池，使用ZDependence、ZSynchronization类实现功能。
+
+公有函数：
+ZThreadPool(uint amount = DEFAULT_AMOUNT)：
+构造函数，amount表示最多可使用的线程个数，默认值DEFAULT_AMOUNT为1。
+~ZThreadPool();
+析构函数，无执行。
+uint amount() const;
+获得最大执行的线程个数。
+void run(ZDependence &dependence);
+接收依赖类ZDependence，按照该依赖关系执行。
+
+---------------------------------------------------------------ZSynchronization类--------------------------------------------------------------
+所属头文件ZSynchronization.h，实现多个线程的同步操作，如果该类当前子线程个数较少则可创建子线程，否则等待某个子线程结束后再创建。使用不可分离的线程。
+
+公有函数：
+ZSynchronization(uint amount, error_t *err = nullptr)：
+初始化同步类，amount为最大同时执行的线程个数，err存储错误信息errno，默认err为空指针即不存储错误值。
+~ZSynchronization()：
+析构函数，等待到所有线程结束并回收资源。
+void run(const list<Fnt> &l)：
+接收const list<Fnt>&类型的重载版本。
+void run(const Fnt &f)：
+接收const Fnt&类型的重载版本，等待到可创建子线程时创建并调用该可调用对象Fnt。
+uint amount() const：
+返回最大可同时执行的子线程个数。
+int wait()：
+等待到无子线程执行。
+
+-----------------------------------------------------------------ZDependence类-----------------------------------------------------------------
+所有头文件ZDependence.h，将其他ZDepenence类管理并组织形成依赖关系，一个ZDependence类接收一组可调用对象。通过按层遍历的方式不断获得当前最底层的同级子依赖可调用对象组。
+
+公有函数：
+ZDependence()：
+构造函数，初始化依赖关系。
+bool empty() const：
+判断当前可调用对象组是否为空。
+void push(const Fnt &f)：
+将const Fnt&类型的可调用对象存储到可调用对象组。
+void push(const ZRunnable &runnable)：
+接收const ZRunnable&类型的重载版本。
+void push(ZRunnable &runnable)：
+接收const ZRunnbale&类型的重载版本。
+bool pushSub(const ZDependence &dependence);
+添加当前类的子依赖。
+iterator begin() const;
+返回首迭代器，是ZDepIterator类类型。
+iterator end() const;
+返回尾后迭代器，是ZDepIterator类类型。
+私有函数：
+bool valid(const ZDependence &dependence) const;
+判断当前的依赖关系是否为有向无环的。
+
+-----------------------------------------------------------------ZDepIterator类----------------------------------------------------------------
+所属头文件ZDependence.h，用于遍历与访问依赖对象。
+
+公有函数：
+ZDepIterator()：
+默认构造函数，创建尾后迭代器。
+ZDepIterator(const ZDependence &dependence)：
+接收ZDependence类类型的构造函数，创建该依赖对象的首迭代器。
+const list<Fnt> &operator *() const：
+获得指定依赖对象当前最底层的同级子依赖对象组。
+const list<Fnt> *operator ->() const：
+获得指定依赖对象当前最底层的同级子依赖对象组的指针。
+ZDepIterator &operator ++()：
+遍历依赖关系，返回遍历后的迭代器。
+const ZDepIterator operator ++(int)：
+遍历依赖关系，返回遍历前的迭代器。
+私有函数：
+void initSave(const ZDependence &dependence)：
+通过依赖对象创建依赖关系并存储。
+非成员函数：
+bool operator ==(const ZDepIterator &itor1, const ZDepIterator &itor2)：
+判断两个迭代器是否指向相同的依赖关系位置，所有的尾后迭代器都相同。
+bool operator !=(const ZDepIterator &itor1, const ZDepIterator &itor2)：
+判断两个迭代器是否指向不同的依赖关系位置。
+===============================================================================================================================================
+
+使用单线程的一般流程：
+实例化ZThread类类型对象thread，ZThread thread。
+创建可调用对象：
+创建一个继承ZRunnable的用户类user并重载run函数 -> 实例化对象u -> thread.run(u)创建子线程执行;
+定义非成员函数void func() -> thread.run(fun)创建子线程执行;
+使用匿名函数lambda -> thread.run([&](){std::cout << "lambda" << std::endl;})创建子线程执行;
+使用重载调用运算()的类Call -> 实例化对象Ca -> thread.run(Ca)创建子线程执行;
+其他可调用对象......
+等待子线程结束：
+如果thread是不可分离的则在析构时会等待子线程结束;
+可以提前调用thread.wait()等待子线程结束;
+如果thread是可分离的则调用wait时该函数直接退出。
+
+使用依赖关系线程池的流程：
+创建依赖类，ZDependence de1;
+           ZDependence de2;
+创建线程池，ZThreadPool pool(3);
+传入可调用对象，de1.push([&](){cout << "sub dependence" << endl;});
+               de1.push(func);
+               de1.push(u);
+               de2.push(Ca);
+               de2.push(func);
+传入子依赖，de2.pushSub(de1);
+线程池执行按照依赖关系执行，pool.run(de2);，其中de1的lambda、func、u会较de2的Ca、func先执行，且同级的子依赖执行顺序不定。
+
