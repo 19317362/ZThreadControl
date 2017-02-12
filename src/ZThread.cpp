@@ -4,17 +4,27 @@ ZThread::ZThread(bool detached)
 {
     mThread = 0;
     mDetached = detached;
+    mRunStatus = STOP;
 }
 
 ZThread::~ZThread()
 {
     wait();
+    mRunStatus = STOP;
 }
 
 int ZThread::run(const Fnt &f, void **data)
 {
     // the obj will be deleted in pthFunc
-    wait(data);
+    if (mRunStatus == RUN && !mDetached)
+    {
+        wait(data);
+    }
+    else if (mRunStatus == RUN && mDetached)
+    {
+        return -1; // thread is runing and mDetached
+    }
+
     int ret = pthread_create(&mThread,nullptr,thFunc,new Fnt(f));
     if (ret == 0 && mDetached)
     {
@@ -38,11 +48,29 @@ int ZThread::run(ZRunnable &runnable, void **data)
 
 int ZThread::wait(void **data)
 {
-    if (mDetached)
+    if (mRunStatus == STOP)
     {
         return 0;
     }
-    return pthread_join(mThread,data); // return error munber,change mThread maybe affect running detached thread.
+    else if (mRunStatus == RUN && !mDetached)
+    {
+        mRunStatus = STOP;
+        return pthread_join(mThread,data); // return error number,change mThread maybe affect running detached thread.
+    }
+    else // mRunStatus == RUN && mDetached
+    {
+        return -1;
+    }
+}
+
+RUN_STATUS ZThread::runStatus() const
+{
+    return mRunStatus;
+}
+
+void ZThread::setRunStatus(const RUN_STATUS &runStatus)
+{
+    mRunStatus = runStatus;
 }
 
 void *thFunc(void *pArg)

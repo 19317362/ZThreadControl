@@ -48,7 +48,7 @@ private:
 private:
     list<Fnt> mWorks;
     list<SubNode> mSubs;
-    set<const ZDependence *> mDependences;
+    set<const ZDependence *> mDependences; // Used in vaild() method checks whether there is a ring
 };
 
 class ZDepIterator

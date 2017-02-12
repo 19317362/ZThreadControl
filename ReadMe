@@ -120,7 +120,7 @@ bool operator !=(const ZDepIterator &itor1, const ZDepIterator &itor2)：
 使用单线程的一般流程：
 实例化ZThread类类型对象thread，ZThread thread。
 创建可调用对象：
-创建一个继承ZRunnable的用户类user并重载run函数 -> 实例化对象u -> thread.run(u)创建子线程执行;
+创建一个继承ZRunnable的用户类user并实现run函数 -> 实例化对象u -> thread.run(u)创建子线程执行;
 定义非成员函数void func() -> thread.run(fun)创建子线程执行;
 使用匿名函数lambda -> thread.run([&](){std::cout << "lambda" << std::endl;})创建子线程执行;
 使用重载调用运算()的类Call -> 实例化对象Ca -> thread.run(Ca)创建子线程执行;

@@ -1,6 +1,6 @@
 #include "ZDependence.h"
 
-ZDependence::ZDependence() : mDependences({this})
+ZDependence::ZDependence()
 {
     ;
 }
@@ -36,7 +36,9 @@ bool ZDependence::pushSub(const ZDependence &dependence)
         return false;
     }
 
+    mDependences.insert(&dependence);
     mDependences.insert(dependence.mDependences.begin(),dependence.mDependences.end());
+
     mSubs.push_back(&dependence);
     return true;
 }
@@ -57,6 +59,7 @@ bool ZDependence::valid(const ZDependence &dependence) const
     {
         return false;
     }
+    // By determining whether they are in all the lower dependencies to determine whether there is a ring
     if (dependence.mDependences.find(this) != dependence.mDependences.end())
     {
         return false;
@@ -74,7 +77,9 @@ ZDepIterator::ZDepIterator()
 
 ZDepIterator::ZDepIterator(const ZDependence &dependence)
 {
+    // Initializes the mDependencePool used by the store
     initSave(dependence);
+
     mEnd = mDependencePool.empty();
     mCurrent = mDependencePool.crbegin();
 }
@@ -117,22 +122,31 @@ void ZDepIterator::initSave(const ZDependence &dependence)
         fnts.clear();
         while (!deps1.empty())
         {
+            // Order to get Dependence class object
             const ZDependence *dep = deps1.front();
+
+            // Store the child dependencies on another queue for use in the another iteration
             for (const ZDependence *each : dep->mSubs)
             {
                 deps2.push(each);
             }
+
+            // Stores the callable object of the currently dependent class
             for (const Fnt &each : dep->mWorks)
             {
                 fnts.push_back(each);
             }
+
+            // Cycles the next dependent class
             deps1.pop();
         }
         if (!fnts.empty())
         {
+            // Equally dependent level of callable objects
             mDependencePool.push_back(fnts);
         }
 
+        // The other loop is similar to the previous one
         fnts.clear();
         while (!deps2.empty())
         {

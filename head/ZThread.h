@@ -21,6 +21,8 @@ using std::cout;
 using std::endl;
 using Fnt = function<void ()>;
 
+enum RUN_STATUS{STOP = 0,RUN};
+
 /*=>using smart pointer
  * pArg is pointer type, and argument isn't object. Maybe smart pointer counter will not increase.
  * Wait for implementation...
@@ -39,9 +41,15 @@ public:
 
     int wait(void **data = nullptr);
 
+    RUN_STATUS runStatus() const;
+
+protected:
+    void setRunStatus(const RUN_STATUS &runStatus);
+
 private:
     pthread_t mThread;
     bool mDetached;
+    RUN_STATUS mRunStatus;
 };
 
 #endif // ZTHREAD_H
